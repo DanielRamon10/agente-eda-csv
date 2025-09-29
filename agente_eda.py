@@ -15,22 +15,18 @@ def analisar_tipos(df):
 
 def conclusoes_automatica(df, memoria):
     conclusoes = []
-    # Conclusão 1: Dados nulos
     total_nulos = df.isnull().sum().sum()
     if total_nulos > 0:
         conclusoes.append(f"Existem {total_nulos} valores nulos no dataset, recomendando tratamento prévio à análise.")
     else:
         conclusoes.append("Não há valores nulos no dataset.")
-    # Conclusão 2: Fraudes (se coluna Class)
     if 'Class' in df.columns:
         fraudes = int(df['Class'].sum())
         total = len(df)
         percent = fraudes / total * 100
         conclusoes.append(f"Foram identificadas {fraudes} transações fraudulentas ({percent:.4f}% do total), indicando dataset altamente desbalanceado.")
-    # Conclusão 3: Variáveis PCA
     if all([col.startswith('V') for col in df.columns if col.startswith('V')]):
         conclusoes.append("As colunas V1 a V28 passaram por redução de dimensionalidade (PCA), portanto não é possível saber seu significado real.")
-    # Conclusão 4: Outliers
     if 'Amount' in df.columns:
         q1 = df['Amount'].quantile(0.25)
         q3 = df['Amount'].quantile(0.75)
@@ -41,11 +37,9 @@ def conclusoes_automatica(df, memoria):
     memoria['conclusoes'] = conclusoes
     return conclusoes
 
-# Estado da sessão para "memória"
 if 'memoria' not in st.session_state:
     st.session_state['memoria'] = dict(conclusoes=[])
 
-# Interface
 st.title("🧑‍💻 Agente Autônomo de EDA - Qualquer CSV!")
 
 st.markdown("""
@@ -59,15 +53,12 @@ if uploaded_file:
     st.subheader("Prévia dos Dados")
     st.dataframe(df.head())
 
-    # Tipos de Dados
     st.subheader("Tipos de Dados e Informações Básicas")
     st.dataframe(analisar_tipos(df))
 
-    # Estatísticas Descritivas
     st.subheader("Estatísticas Descritivas")
     st.dataframe(df.describe().T)
 
-    # Distribuição de variáveis numéricas
     st.subheader("Visualização de Distribuição")
     num_cols = df.select_dtypes(include=np.number).columns.tolist()
     col1, col2 = st.columns(2)
@@ -84,7 +75,6 @@ if uploaded_file:
         ax2.set_title(f"Boxplot de {col_box}")
         st.pyplot(fig2)
 
-    # Correlação entre variáveis numéricas
     st.subheader("Matriz de Correlação (variáveis numéricas)")
     corr = df[num_cols].corr()
     st.dataframe(corr)
@@ -97,7 +87,6 @@ if uploaded_file:
     ax_corr.set_yticklabels(num_cols, fontsize=8)
     st.pyplot(fig_corr)
 
-    # Gráfico de dispersão entre variáveis
     st.subheader("Gráfico de Dispersão entre Variáveis Numéricas")
     col_x = st.selectbox("Selecione X:", num_cols, index=0)
     col_y = st.selectbox("Selecione Y:", num_cols, index=1 if len(num_cols)>1 else 0)
@@ -108,19 +97,16 @@ if uploaded_file:
     ax3.set_title(f"Scatter: {col_x} vs {col_y}")
     st.pyplot(fig3)
 
-    # Conclusões automáticas
     st.subheader("Conclusões do Agente")
     conclusoes = conclusoes_automatica(df, st.session_state['memoria'])
     for c in conclusoes:
         st.write("- ", c)
 
-    # Campo para perguntas
     st.subheader("Pergunte ao agente sobre os dados:")
     pergunta = st.text_input("Digite sua pergunta (em português):")
     if pergunta:
         resposta = ""
         pergunta_lower = pergunta.lower()
-        # Exemplos de regras (você pode incrementar com NLP ou LLM se quiser)
         if "tipo" in pergunta_lower or "categorico" in pergunta_lower or "numérico" in pergunta_lower:
             resposta = "Tipos de dados das colunas:\n" + str(df.dtypes)
         elif "fraude" in pergunta_lower and "quantas" in pergunta_lower:
@@ -136,6 +122,12 @@ if uploaded_file:
         elif "mediana" in pergunta_lower:
             medianas = df.median(numeric_only=True)
             resposta = f"Mediana das variáveis numéricas:\n{medianas}"
+        elif "máximo" in pergunta_lower or "maior valor" in pergunta_lower or "maximo" in pergunta_lower:
+            maximos = df.max(numeric_only=True)
+            resposta = f"Maior valor de cada coluna numérica:\n{maximos}"
+        elif "mínimo" in pergunta_lower or "menor valor" in pergunta_lower or "minimo" in pergunta_lower:
+            minimos = df.min(numeric_only=True)
+            resposta = f"Menor valor de cada coluna numérica:\n{minimos}"
         elif "correlação" in pergunta_lower:
             resposta = "Matriz de correlação entre variáveis numéricas:\n" + str(df.corr())
         elif "outlier" in pergunta_lower or "valor atípico" in pergunta_lower:
@@ -151,11 +143,10 @@ if uploaded_file:
         elif "conclusão" in pergunta_lower:
             resposta = "\n".join(st.session_state['memoria']['conclusoes'])
         else:
-            resposta = "Pergunta não reconhecida diretamente. Tente perguntas sobre tipo de dado, média, fraudes, correlação ou outliers."
+            resposta = "Pergunta não reconhecida diretamente. Tente perguntas sobre tipo de dado, média, fraudes, correlação, máximos/mínimos ou outliers."
         st.success(resposta)
 else:
     st.info("Faça upload de um arquivo CSV para começar a análise.")
 
 st.markdown("---")
 st.caption("Desenvolvido para o Desafio Extra - I2A2 Academy 2025")
-
