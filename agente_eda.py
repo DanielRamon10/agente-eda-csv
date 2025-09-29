@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 
 st.set_page_config(page_title="Agente EDA - Análise Genérica de CSV", layout="wide")
 
-# Funções utilitárias
 def analisar_tipos(df):
     return pd.DataFrame({
         'Tipo de Dado': df.dtypes,
@@ -107,29 +106,88 @@ if uploaded_file:
     if pergunta:
         resposta = ""
         pergunta_lower = pergunta.lower()
+        # Tipos de dados
         if "tipo" in pergunta_lower or "categorico" in pergunta_lower or "numérico" in pergunta_lower:
             resposta = "Tipos de dados das colunas:\n" + str(df.dtypes)
-        elif "fraude" in pergunta_lower and "quantas" in pergunta_lower:
+        # Fraudes
+        elif ("fraude" in pergunta_lower or "fraudulenta" in pergunta_lower) and ("quantas" in pergunta_lower or "percent" in pergunta_lower or "proporç" in pergunta_lower or "porcent" in pergunta_lower):
             if "Class" in df.columns:
                 n_fraudes = int(df['Class'].sum())
                 n_total = len(df)
-                resposta = f"Existem {n_fraudes} fraudes, o que representa {(n_fraudes/n_total)*100:.4f}% das transações."
+                perc_fraude = n_fraudes / n_total * 100
+                resposta = f"Existem {n_fraudes} fraudes ({perc_fraude:.4f}%) no total de {n_total} transações."
             else:
                 resposta = "A coluna 'Class' não existe neste arquivo."
-        elif "média" in pergunta_lower:
+        # Média
+        elif "média" in pergunta_lower or "media" in pergunta_lower:
             medias = df.mean(numeric_only=True)
             resposta = f"Média das variáveis numéricas:\n{medias}"
+        # Mediana
         elif "mediana" in pergunta_lower:
             medianas = df.median(numeric_only=True)
             resposta = f"Mediana das variáveis numéricas:\n{medianas}"
+        # Moda
+        elif "moda" in pergunta_lower or "valor mais comum" in pergunta_lower or "mais frequente" in pergunta_lower:
+            modas = df.mode(numeric_only=True).iloc[0]
+            resposta = f"Moda (valor mais frequente) das variáveis numéricas:\n{modas}"
+        # Desvio padrão
+        elif "desvio padrão" in pergunta_lower:
+            stds = df.std(numeric_only=True)
+            resposta = f"Desvio padrão das variáveis numéricas:\n{stds}"
+        # Variância
+        elif "variância" in pergunta_lower or "variancia" in pergunta_lower:
+            vars = df.var(numeric_only=True)
+            resposta = f"Variância das variáveis numéricas:\n{vars}"
+        # Máximos
         elif "máximo" in pergunta_lower or "maior valor" in pergunta_lower or "maximo" in pergunta_lower:
             maximos = df.max(numeric_only=True)
             resposta = f"Maior valor de cada coluna numérica:\n{maximos}"
+        # Mínimos
         elif "mínimo" in pergunta_lower or "menor valor" in pergunta_lower or "minimo" in pergunta_lower:
             minimos = df.min(numeric_only=True)
             resposta = f"Menor valor de cada coluna numérica:\n{minimos}"
-        elif "correlação" in pergunta_lower:
-            resposta = "Matriz de correlação entre variáveis numéricas:\n" + str(df.corr())
+        # Soma
+        elif "soma" in pergunta_lower:
+            somas = df.sum(numeric_only=True)
+            resposta = f"Soma dos valores de cada coluna numérica:\n{somas}"
+        # Nulos
+        elif "nulo" in pergunta_lower or "faltante" in pergunta_lower:
+            nulos = df.isnull().sum()
+            resposta = f"Quantidade de valores nulos por coluna:\n{nulos}"
+        # Linhas e colunas
+        elif "quantos registros" in pergunta_lower or "quantas linhas" in pergunta_lower or "quantas colunas" in pergunta_lower:
+            resposta = f"O arquivo possui {df.shape[0]} linhas e {df.shape[1]} colunas."
+        # Colunas do arquivo
+        elif "quais as colunas" in pergunta_lower or "nome das colunas" in pergunta_lower:
+            resposta = f"As colunas do arquivo são: {list(df.columns)}"
+        # Valor mais comum em uma coluna específica
+        elif "valor mais comum" in pergunta_lower or "valor mais frequente" in pergunta_lower:
+            # Tentativa de identificar coluna
+            for col in df.columns:
+                if col.lower() in pergunta_lower:
+                    valor = df[col].mode().iloc[0]
+                    resposta = f"O valor mais comum na coluna {col} é: {valor}"
+                    break
+        # Porcentagem/proporção das classes (exemplo: Class)
+        elif "porcent" in pergunta_lower or "proporç" in pergunta_lower or "percent" in pergunta_lower:
+            if "Class" in df.columns and set(df["Class"].unique()) == {0,1}:
+                n_fraude = int(df["Class"].sum())
+                n_total = len(df)
+                perc_fraude = n_fraude / n_total * 100
+                perc_normal = 100 - perc_fraude
+                resposta = (
+                    f"Porcentagem de transações normais: {perc_normal:.4f}%\n"
+                    f"Porcentagem de transações fraudulentas: {perc_fraude:.4f}%"
+                )
+            else:
+                cat_cols = df.select_dtypes(include=["object", "category", "bool"]).columns.tolist()
+                if cat_cols:
+                    for col in cat_cols:
+                        proporcoes = df[col].value_counts(normalize=True) * 100
+                        resposta += f"Proporção por categoria em {col}:\n{proporcoes}\n"
+                else:
+                    resposta = "Nenhuma coluna categórica encontrada para calcular porcentagem."
+        # Outliers
         elif "outlier" in pergunta_lower or "valor atípico" in pergunta_lower:
             outlier_cols = []
             for col in num_cols:
@@ -140,10 +198,58 @@ if uploaded_file:
                 if len(outliers) > 0:
                     outlier_cols.append(f"{col}: {len(outliers)} outliers")
             resposta = "Outliers encontrados:\n" + "\n".join(outlier_cols) if outlier_cols else "Nenhum outlier significativo encontrado."
-        elif "conclusão" in pergunta_lower:
+        # Intervalo dos valores
+        elif "intervalo" in pergunta_lower:
+            intervalo = df[num_cols].agg(['min', 'max'])
+            resposta = f"Intervalo de valores (mínimo e máximo):\n{intervalo}"
+        # Distribuição dos valores (mostrar histograma)
+        elif "distribuição" in pergunta_lower or "histograma" in pergunta_lower:
+            for col in num_cols:
+                if col.lower() in pergunta_lower:
+                    fig, ax = plt.subplots()
+                    df[col].hist(bins=30, ax=ax)
+                    ax.set_title(f"Histograma de {col}")
+                    st.pyplot(fig)
+                    resposta = f"Distribuição da coluna {col} exibida acima."
+                    break
+            else:
+                resposta = "Especifique o nome de uma coluna numérica para mostrar a distribuição/histograma."
+        # Top N valores (maiores/menores)
+        elif "maiores" in pergunta_lower or "top" in pergunta_lower:
+            for col in num_cols:
+                if col.lower() in pergunta_lower:
+                    topn = df[col].nlargest(10)
+                    resposta = f"Top 10 maiores valores em {col}:\n{topn}"
+                    break
+        elif "menores" in pergunta_lower:
+            for col in num_cols:
+                if col.lower() in pergunta_lower:
+                    botn = df[col].nsmallest(10)
+                    resposta = f"Top 10 menores valores em {col}:\n{botn}"
+                    break
+        # Correlação entre duas colunas
+        elif "correlação" in pergunta_lower or "correlacao" in pergunta_lower or "correlation" in pergunta_lower:
+            found_cols = []
+            for col in num_cols:
+                if col.lower() in pergunta_lower:
+                    found_cols.append(col)
+            if len(found_cols) == 2:
+                corr_val = df[found_cols[0]].corr(df[found_cols[1]])
+                resposta = f"Correlação entre {found_cols[0]} e {found_cols[1]}: {corr_val:.4f}"
+            else:
+                resposta = "Informe os nomes de duas colunas numéricas para calcular a correlação."
+        # Quantidade de categorias em uma coluna
+        elif "categorias" in pergunta_lower:
+            for col in df.columns:
+                if col.lower() in pergunta_lower:
+                    ncat = df[col].nunique()
+                    resposta = f"A coluna {col} possui {ncat} categorias únicas."
+                    break
+        # Conclusões do agente
+        elif "conclusão" in pergunta_lower or "conclusao" in pergunta_lower:
             resposta = "\n".join(st.session_state['memoria']['conclusoes'])
         else:
-            resposta = "Pergunta não reconhecida diretamente. Tente perguntas sobre tipo de dado, média, fraudes, correlação, máximos/mínimos ou outliers."
+            resposta = "Pergunta não reconhecida diretamente. Tente perguntas sobre tipo de dado, média, fraudes, máximos/mínimos, proporções, outliers, intervalos, distribuição ou colunas."
         st.success(resposta)
 else:
     st.info("Faça upload de um arquivo CSV para começar a análise.")
